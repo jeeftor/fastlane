@@ -17,7 +17,6 @@ module Fastlane
         copy_existing_files
         default_generate_appfile
         detect_installed_tools # after copying the existing files
-        default_run_produce
         default_enable_other_tools
         FileUtils.mkdir(File.join(FastlaneFolder.path, 'actions'))
         default_generate_fastfile
