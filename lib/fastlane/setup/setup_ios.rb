@@ -14,6 +14,7 @@ module Fastlane
       # rubocop:disable Lint/RescueException
       begin
         FastlaneFolder.create_folder! unless Helper.is_test?
+        setup_default_project
         copy_existing_files
         default_generate_appfile
         detect_installed_tools # after copying the existing files
@@ -21,7 +22,6 @@ module Fastlane
         FileUtils.mkdir(File.join(FastlaneFolder.path, 'actions'))
         default_generate_fastfile
         show_analytics
-        print_config_table
         Helper.log.info 'Successfully finished setting up fastlane'.green
       rescue => ex # this will also be caused by Ctrl + C
         # Something went wrong with the setup, clear the folder again
@@ -33,8 +33,24 @@ module Fastlane
       # rubocop:enable Lint/RescueException
     end
 
+    def setup_default_project
+      config = {}
+      FastlaneCore::Project.detect_projects(config)
+      @project = FastlaneCore::Project.new(config)
+      @project.default_app_identifier
+      @project.default_app_name
+      ask_for_apple_id
+      print_config_table
+    end
+
     def print_config_table
-      FastlaneCore::PrintTable.print_values(config: default_project.options)
+      rows = []
+      rows << ["apple_id", @apple_id]
+      rows << ["app_name", @project.default_app_name]
+      rows << ["app_id", @project.default_app_identifier]
+      @project.options.each { |k, v| rows << [k, v] }
+      require 'terminal-table'
+      puts Terminal::Table.new(rows: rows, title: "Default Values")
     end
 
     def show_infos
@@ -60,30 +76,20 @@ module Fastlane
       end
     end
 
-    def default_project
-      config = {}
-      FastlaneCore::Project.detect_projects(config)
-      FastlaneCore::Project.new(config)
-    end
-
     def default_generate_appfile
       # get the proper xcodeproj/workspace and determine the bundle_id
       # team ID
-      config = {}
-      FastlaneCore::Project.detect_projects(config)
-      project = FastlaneCore::Project.new(config)
-      apple_id = ask_for_apple_id
-      create_appfile(project.default_app_identifier, apple_id)
+      create_appfile(@project.default_app_identifier)
     end
 
     def ask_for_apple_id
-      ask('Your Apple ID (e.g. fastlane@krausefx.com): '.yellow)
+      @apple_id = ask('Your Apple ID (e.g. fastlane@krausefx.com): '.yellow)
     end
 
-    def create_appfile(app_identifier, apple_id)
+    def create_appfile(app_identifier)
       template = File.read("#{Helper.gem_path('fastlane')}/lib/assets/AppfileTemplate")
       template.gsub!('[[APP_IDENTIFIER]]', app_identifier)
-      template.gsub!('[[APPLE_ID]]', apple_id)
+      template.gsub!('[[APPLE_ID]]', @apple_id)
       path = File.join(folder, 'Appfile')
       File.write(path, template)
       Helper.log.info "Created new file '#{path}'. Edit it to manage your preferred app metadata information.".green
