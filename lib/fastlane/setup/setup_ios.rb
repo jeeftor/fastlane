@@ -21,6 +21,7 @@ module Fastlane
         FileUtils.mkdir(File.join(FastlaneFolder.path, 'actions'))
         default_generate_fastfile
         show_analytics
+        print_config_table
         Helper.log.info 'Successfully finished setting up fastlane'.green
       rescue => ex # this will also be caused by Ctrl + C
         # Something went wrong with the setup, clear the folder again
@@ -30,6 +31,10 @@ module Fastlane
         raise ex
       end
       # rubocop:enable Lint/RescueException
+    end
+
+    def print_config_table
+      FastlaneCore::PrintTable.print_values(config: default_project.options)
     end
 
     def show_infos
@@ -53,6 +58,12 @@ module Fastlane
         Helper.log.info "Moving '#{current}' to '#{to_path}'".green
         FileUtils.mv(current, to_path)
       end
+    end
+
+    def default_project
+      config = {}
+      FastlaneCore::Project.detect_projects(config)
+      FastlaneCore::Project.new(config)
     end
 
     def default_generate_appfile
